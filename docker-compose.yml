@@ -1,0 +1,6 @@
+services:
+  arduino-compile-server:
+    build: .
+    command: /app/server
+    ports:
+      - "8080:8080"
