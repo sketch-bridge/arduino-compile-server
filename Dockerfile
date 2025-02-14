@@ -15,16 +15,15 @@ RUN go mod download
 COPY ./main.go ./
 #COPY ./auth/*.go ./auth/
 #COPY ./build/*.go ./build/
-#COPY ./database/*.go ./database/
+COPY ./database/*.go ./database/
 #COPY ./parameter/*.go ./parameter/
-#COPY ./web/*.go ./web/
-#COPY ./common/*.go ./common/
-COPY ./sketches/blink/*.ino ./sketches/blink/
+COPY ./web/*.go ./web/
+COPY ./common/*.go ./common/
 # RUN go test -v ./...
 RUN go build -mod=readonly -v -o server
 
 # For local development environment only
-#COPY service-account-remap-b2d08-70b4596e8a05.json ./
+COPY sketch-bridge-c8804059e16c.json ./
 
 # EXPOSE 8088
 

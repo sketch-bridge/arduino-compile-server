@@ -6,11 +6,13 @@ import (
 	"sketch-bridge/arduino-compile-server/common"
 )
 
-// ParseQueryParameters parses the query parameters. The query parameters are as follows:
+// ParseParameters parses the parameters in body. The parameters are as follows:
 //   - projectId: The project ID.
-func ParseQueryParameters(r *http.Request) (*common.RequestParameters, error) {
-	queryParams := r.URL.Query()
-	projectId := queryParams.Get("projectId")
+func ParseParameters(r *http.Request) (*common.RequestParameters, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, fmt.Errorf("failed to parse form: %v", err)
+	}
+	projectId := r.FormValue("projectId")
 	if projectId == "" {
 		return nil, fmt.Errorf("projectId is empty")
 	}
