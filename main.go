@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cloud.google.com/go/firestore"
 	"context"
+	"encoding/json"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/storage"
 	"fmt"
@@ -19,6 +20,11 @@ import (
 	"sketch-bridge/arduino-compile-server/web"
 	"strings"
 )
+
+type BuildResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
 
 func main() {
 	ctx := context.Background()
@@ -69,18 +75,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 
 	uid, err := authenticateUser(r, app)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusUnauthorized)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusUnauthorized)
 		return
 	}
 	fmt.Printf("uid: %s\n", uid)
 
 	params, err := web.ParseParameters(r)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -88,31 +90,23 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 
 	project, err := database.GetProject(ctx, firestoreClient, params.ProjectId)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 
 	buildDirectoryPath, err := deleteProjectBuildDirectory(project.Id)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 	_, err = deleteProjectSketchDirectory(project.Id)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 	sketchDirectoryPath, err := createProjectSketch(project)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -129,9 +123,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		stderrString := stderr.String()
 		log.Printf("[ERROR] %s\n", err.Error())
 		log.Printf("[ERROR] %s\n", stderrString)
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, "Building failed\n")
-		io.WriteString(w, stderrString)
+		sendSuccessfulResponse(ctx, w, false, stderrString)
 		return
 	}
 
@@ -146,18 +138,33 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 
 	err = database.UploadHexFile(ctx, storageClient, project, uid)
 	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, err.Error())
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 
+	sendSuccessfulResponse(ctx, w, true, stdoutString)
+}
+
+func sendSuccessfulResponse(ctx context.Context, w http.ResponseWriter, success bool, body string) {
 	// For CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, "Building succeeded\n")
-	io.WriteString(w, stdoutString)
+	w.Header().Set("Content-Type", "application/json")
+	response := BuildResponse{
+		Success: success,
+		Message: body,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+func sendFailureResponse(ctx context.Context, w http.ResponseWriter, cause error, status int) {
+	// For CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	log.Printf("[ERROR] %s\n", cause.Error())
+	w.WriteHeader(status)
+	io.WriteString(w, cause.Error())
 }
 
 func deleteProjectBuildDirectory(projectId string) (string, error) {
