@@ -127,15 +127,6 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		return
 	}
 
-	files, err := os.ReadDir(filepath.Join("/app/build", project.Id))
-	if err != nil {
-		log.Printf("[ERROR] %s\n", err.Error())
-		return
-	}
-	for _, file := range files {
-		fmt.Println(file.Name())
-	}
-
 	err = database.UploadHexFile(ctx, storageClient, project, uid)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
