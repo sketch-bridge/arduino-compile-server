@@ -8,7 +8,6 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/storage"
 	"fmt"
-	"google.golang.org/api/option"
 	"io"
 	"log"
 	"net/http"
@@ -40,7 +39,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	port := "8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	h := func(w http.ResponseWriter, r *http.Request) {
 		handleRequest(w, r, ctx, firestoreClient, storageClient, app)
 	}
@@ -52,9 +54,9 @@ func main() {
 }
 
 func createFirebaseApp(ctx context.Context) *firebase.App {
-	sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
-	app, err := firebase.NewApp(ctx, nil, sa)
-	//app, err := firebase.NewApp(ctx, nil)
+	//sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
+	//app, err := firebase.NewApp(ctx, nil, sa)
+	app, err := firebase.NewApp(ctx, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -110,7 +112,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		return
 	}
 
-	cmd := exec.Command("/usr/local/bin/arduino-cli", "compile", "--output-dir", buildDirectoryPath, "--fqbn", "arduino:avr:uno", sketchDirectoryPath)
+	cmd := exec.Command("/usr/local/bin/arduino-cli", "compile", "--no-color", "--output-dir", buildDirectoryPath, "--fqbn", "arduino:avr:uno", sketchDirectoryPath)
 	cmd.Dir = "/app"
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
