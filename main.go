@@ -111,6 +111,11 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
+	err = createSketchConfigurationFile(sketchDirectoryPath, project.Libraries)
+	if err != nil {
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
+		return
+	}
 
 	cmd := exec.Command("/usr/local/bin/arduino-cli", "compile", "--no-color", "--output-dir", buildDirectoryPath, "--fqbn", "arduino:avr:uno", sketchDirectoryPath)
 	cmd.Dir = "/app"
@@ -135,6 +140,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		return
 	}
 
+	log.Printf("Building successful\n")
 	sendSuccessfulResponse(ctx, w, true, stdoutString)
 }
 
@@ -199,6 +205,31 @@ func createProjectSketch(project *common.Project) (string, error) {
 		return "", fmt.Errorf("failed to write to file: %v", err)
 	}
 	return dirPath, nil
+}
+
+func createSketchConfigurationFile(sketchDirectoryPath string, libraries []common.Library) error {
+	filePath := filepath.Join(sketchDirectoryPath, "sketch.yaml")
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+	content := `profiles:
+  profile:
+    fqbn: arduino:avr:uno
+    platforms:
+      - platform: arduino:avr (1.8.6)`
+	if len(libraries) > 0 {
+		content += "\n    libraries:\n"
+		for _, library := range libraries {
+			content += fmt.Sprintf("      - %s (%s)\n", library.Name, library.Version)
+		}
+	}
+	content += "\ndefault_profile: profile\n"
+	if _, err := file.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write to file: %v", err)
+	}
+	return nil
 }
 
 func authenticateUser(r *http.Request, app *firebase.App) (string, error) {
