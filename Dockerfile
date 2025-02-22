@@ -7,6 +7,7 @@ RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/inst
 
 RUN arduino-cli core update-index
 RUN arduino-cli core install arduino:avr
+RUN arduino-cli core install arduino:renesas_uno
 
 WORKDIR /app
 
