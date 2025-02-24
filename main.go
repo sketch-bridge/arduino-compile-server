@@ -8,6 +8,7 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/storage"
 	"fmt"
+	"google.golang.org/api/option"
 	"io"
 	"log"
 	"net/http"
@@ -54,9 +55,9 @@ func main() {
 }
 
 func createFirebaseApp(ctx context.Context) *firebase.App {
-	//sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
-	//app, err := firebase.NewApp(ctx, nil, sa)
-	app, err := firebase.NewApp(ctx, nil)
+	sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
+	app, err := firebase.NewApp(ctx, nil, sa)
+	//app, err := firebase.NewApp(ctx, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -101,6 +102,13 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		fqbn = "arduino:avr:uno"
 	}
 
+	board, exists := common.Boards[fqbn]
+	if exists == false {
+		fmt.Printf("unknown board: %s\n", fqbn)
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
+		return
+	}
+
 	buildDirectoryPath, err := deleteProjectBuildDirectory(project.Id)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
@@ -116,7 +124,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
-	err = createSketchConfigurationFile(sketchDirectoryPath, fqbn, project.Libraries)
+	err = createSketchConfigurationFile(sketchDirectoryPath, project.Libraries, board)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
@@ -147,7 +155,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		log.Printf("File: %s\n", file.Name())
 	}
 
-	err = database.UploadHexFile(ctx, storageClient, project, uid)
+	err = database.UploadFiles(ctx, storageClient, project, uid, board)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
@@ -220,17 +228,13 @@ func createProjectSketch(project *common.Project) (string, error) {
 	return dirPath, nil
 }
 
-func createSketchConfigurationFile(sketchDirectoryPath string, fqbn string, libraries []common.Library) error {
+func createSketchConfigurationFile(sketchDirectoryPath string, libraries []common.Library, board common.Board) error {
 	filePath := filepath.Join(sketchDirectoryPath, "sketch.yaml")
 	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
 	defer file.Close()
-	board, exists := common.Boards[fqbn]
-	if exists == false {
-		return fmt.Errorf("unknown board: %s", fqbn)
-	}
 	content := `profiles:
   profile:
     fqbn: ` + board.Fqbn + `

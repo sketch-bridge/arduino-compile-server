@@ -8,6 +8,7 @@ type Platform struct {
 type Board struct {
 	Platform Platform
 	Fqbn     string
+	Exts     []string
 }
 
 var ArduinoAvr = Platform{
@@ -24,13 +25,11 @@ var Boards = map[string]Board{
 	"arduino:avr:uno": {
 		Platform: ArduinoAvr,
 		Fqbn:     "arduino:avr:uno",
+		Exts:     []string{"hex", "elf", "eep"},
 	},
 	"arduino:renesas_uno:minima": {
 		Platform: ArduinoRenesasUno,
 		Fqbn:     "arduino:renesas_uno:minima",
-	},
-	"arduino:renesas_uno:unor4wifi": {
-		Platform: ArduinoRenesasUno,
-		Fqbn:     "arduino:renesas_uno:unor4wifi",
+		Exts:     []string{"hex", "elf", "bin"},
 	},
 }
