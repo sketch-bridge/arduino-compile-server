@@ -24,7 +24,7 @@ COPY ./common/*.go ./common/
 RUN go build -mod=readonly -v -o server
 
 # For local development environment only
-COPY sketch-bridge-c8804059e16c.json ./
+#COPY sketch-bridge-c8804059e16c.json ./
 
 # EXPOSE 8088
 
