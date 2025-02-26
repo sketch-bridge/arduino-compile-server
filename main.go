@@ -96,6 +96,18 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		return
 	}
 
+	fqbn := project.Fqbn
+	if fqbn == "" {
+		fqbn = "arduino:avr:uno"
+	}
+
+	board, exists := common.Boards[fqbn]
+	if exists == false {
+		fmt.Printf("unknown board: %s\n", fqbn)
+		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
+		return
+	}
+
 	buildDirectoryPath, err := deleteProjectBuildDirectory(project.Id)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
@@ -111,13 +123,13 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
-	err = createSketchConfigurationFile(sketchDirectoryPath, project.Libraries)
+	err = createSketchConfigurationFile(sketchDirectoryPath, project.Libraries, board)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 
-	cmd := exec.Command("/usr/local/bin/arduino-cli", "compile", "--no-color", "--output-dir", buildDirectoryPath, "--fqbn", "arduino:avr:uno", sketchDirectoryPath)
+	cmd := exec.Command("/usr/local/bin/arduino-cli", "compile", "--no-color", "--output-dir", buildDirectoryPath, "--fqbn", fqbn, sketchDirectoryPath)
 	cmd.Dir = "/app"
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -134,7 +146,15 @@ func handleRequest(w http.ResponseWriter, r *http.Request, ctx context.Context, 
 		return
 	}
 
-	err = database.UploadHexFile(ctx, storageClient, project, uid)
+	files, err := os.ReadDir(buildDirectoryPath)
+	if err != nil {
+		log.Fatalf("Failed to read directory: %v", err)
+	}
+	for _, file := range files {
+		log.Printf("File: %s\n", file.Name())
+	}
+
+	err = database.UploadFiles(ctx, storageClient, project, uid, board)
 	if err != nil {
 		sendFailureResponse(ctx, w, err, http.StatusInternalServerError)
 		return
@@ -207,7 +227,7 @@ func createProjectSketch(project *common.Project) (string, error) {
 	return dirPath, nil
 }
 
-func createSketchConfigurationFile(sketchDirectoryPath string, libraries []common.Library) error {
+func createSketchConfigurationFile(sketchDirectoryPath string, libraries []common.Library, board common.Board) error {
 	filePath := filepath.Join(sketchDirectoryPath, "sketch.yaml")
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -216,9 +236,9 @@ func createSketchConfigurationFile(sketchDirectoryPath string, libraries []commo
 	defer file.Close()
 	content := `profiles:
   profile:
-    fqbn: arduino:avr:uno
+    fqbn: ` + board.Fqbn + `
     platforms:
-      - platform: arduino:avr (1.8.6)`
+      - platform: ` + board.Platform.Name + ` (` + board.Platform.Version + `)`
 	if len(libraries) > 0 {
 		content += "\n    libraries:\n"
 		for _, library := range libraries {
