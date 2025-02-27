@@ -32,4 +32,9 @@ var Boards = map[string]Board{
 		Fqbn:     "arduino:renesas_uno:minima",
 		Exts:     []string{"hex", "elf", "bin"},
 	},
+	"arduino:renesas_uno:unor4wifi": {
+		Platform: ArduinoRenesasUno,
+		Fqbn:     "arduino:renesas_uno:unor4wifi",
+		Exts:     []string{"hex", "elf", "bin"},
+	},
 }

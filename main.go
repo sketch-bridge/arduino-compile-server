@@ -8,6 +8,7 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/storage"
 	"fmt"
+	"google.golang.org/api/option"
 	"io"
 	"log"
 	"net/http"
@@ -54,9 +55,9 @@ func main() {
 }
 
 func createFirebaseApp(ctx context.Context) *firebase.App {
-	//sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
-	//app, err := firebase.NewApp(ctx, nil, sa)
-	app, err := firebase.NewApp(ctx, nil)
+	sa := option.WithCredentialsFile("sketch-bridge-c8804059e16c.json")
+	app, err := firebase.NewApp(ctx, nil, sa)
+	//app, err := firebase.NewApp(ctx, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
