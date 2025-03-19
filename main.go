@@ -239,6 +239,10 @@ func createSketchConfigurationFile(sketchDirectoryPath string, libraries []commo
     fqbn: ` + board.Fqbn + `
     platforms:
       - platform: ` + board.Platform.Name + ` (` + board.Platform.Version + `)`
+	if board.Platform.AdditionalUrl != "" {
+		content += `
+        platform_index_url: ` + board.Platform.AdditionalUrl
+	}
 	if len(libraries) > 0 {
 		content += "\n    libraries:\n"
 		for _, library := range libraries {

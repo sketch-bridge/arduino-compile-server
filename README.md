@@ -11,6 +11,8 @@ Arduino Compile Server is a Docker container that compiles Arduino sketches. It 
 
 - Arduino UNO R3
 - Arduino UNO R4 Minima
+- Raspberry Pi Pico
+- Raspberry Pi Pico W
 
 ## Contributing
 
